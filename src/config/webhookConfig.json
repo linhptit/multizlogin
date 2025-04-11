@@ -4,5 +4,11 @@
     "groupEventWebhookUrl": "",
     "reactionWebhookUrl": ""
   },
-  "accounts": {}
+  "accounts": {
+    "1491322465357113651": {
+      "messageWebhookUrl": "https://n8n.code4food.org/webhook/28f4786c-ba31-4104-b1a1-c7828cc25069",
+      "groupEventWebhookUrl": "",
+      "reactionWebhookUrl": ""
+    }
+  }
 }

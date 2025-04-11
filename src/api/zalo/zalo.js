@@ -62,7 +62,7 @@ export async function sendFriendRequest(req, res) {
 
 export async function sendMessage(req, res) {
     try {
-        const { message, threadId, type, ownId } = req.body;
+        const { message, threadId, type, ownId, originMessage } = req.body;
         if (!message || !threadId || !ownId) {
             return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
         }
@@ -71,7 +71,15 @@ export async function sendMessage(req, res) {
             return res.status(400).json({ error: 'Không tìm thấy tài khoản Zalo với OwnId này' });
         }
         const msgType = type || ThreadType.User;
-        const result = await account.api.sendMessage(message, threadId, msgType);
+        const messBody = {
+          msg: message
+        };
+
+        if (originMessage) {
+            messBody.quote = originMessage;
+        }
+        console.log(`Gửi tin nhắn đến ${threadId} với nội dung: ${JSON.stringify(messBody)}`);
+        const result = await account.api.sendMessage(messBody, threadId, msgType);
         res.json({ success: true, data: result });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -162,7 +170,7 @@ export async function sendImageToUser(req, res) {
             return res.status(400).json({ error: 'Dữ liệu không hợp lệ: imagePath và threadId là bắt buộc' });
         }
 
-       
+
         const imagePath = await saveImage(imageUrl);
         if (!imagePath) return res.status(500).json({ success: false, error: 'Failed to save image' });
 
@@ -195,7 +203,7 @@ export async function sendImagesToUser(req, res) {
             return res.status(400).json({ error: 'Dữ liệu không hợp lệ: imagePaths phải là mảng không rỗng và threadId là bắt buộc' });
         }
 
-      
+
         const imagePaths = [];
         for (const imageUrl of imageUrls) {
             const imagePath = await saveImage(imageUrl);
@@ -240,7 +248,7 @@ export async function sendImageToGroup(req, res) {
             return res.status(400).json({ error: 'Dữ liệu không hợp lệ: imagePath và threadId là bắt buộc' });
         }
 
-       
+
         const imagePath = await saveImage(imageUrl);
         if (!imagePath) return res.status(500).json({ success: false, error: 'Failed to save image' });
 
@@ -273,7 +281,7 @@ export async function sendImagesToGroup(req, res) {
             return res.status(400).json({ error: 'Dữ liệu không hợp lệ: imagePaths phải là mảng không rỗng và threadId là bắt buộc' });
         }
 
-      
+
         const imagePaths = [];
         for (const imageUrl of imageUrls) {
             const imagePath = await saveImage(imageUrl);
@@ -316,13 +324,14 @@ export async function loginZaloAccount(customProxy, cred) {
         console.log('Bắt đầu quá trình đăng nhập Zalo...');
         console.log('Custom proxy:', customProxy || 'không có');
         console.log('Đang nhập với cookie:', cred ? 'có' : 'không');
-        
+
         loginResolve = resolve;
         let agent;
         let proxyUsed = null;
         let useCustomProxy = false;
         let proxies = [];
         try {
+            console.log('Đang đọc file proxies.json...');
             const proxiesJson = fs.readFileSync('./data/proxies.json', 'utf8');
             proxies = JSON.parse(proxiesJson);
             console.log(`Đã đọc ${proxies.length} proxy từ file proxies.json`);
@@ -405,6 +414,7 @@ export async function loginZaloAccount(customProxy, cred) {
                     // If cookie login fails, attempt QR code login
                     api = await zalo.loginQR(null, (qrData) => {
                         console.log('Đã nhận dữ liệu QR:', qrData ? 'có dữ liệu' : 'không có dữ liệu');
+                        // console.log(qrData)
                         if (qrData?.data?.image) {
                             const qrCodeImage = `data:image/png;base64,${qrData.data.image}`;
                             console.log('Đã tạo mã QR, độ dài:', qrCodeImage.length);
@@ -434,7 +444,7 @@ export async function loginZaloAccount(customProxy, cred) {
                 console.log("Zalo SDK đã kết nối");
                 resolve(true);
             });
-            
+
             console.log('Thiết lập event listeners');
             setupEventListeners(api, loginResolve);
             api.listener.start();
@@ -445,7 +455,7 @@ export async function loginZaloAccount(customProxy, cred) {
                 proxyUsed.accounts.push(api);
                 console.log(`Đã cập nhật proxy ${proxyUsed.url} với usedCount = ${proxyUsed.usedCount}`);
             }
-            
+
             console.log('Đang lấy thông tin tài khoản...');
             const accountInfo = await api.fetchAccountInfo();
             if (!accountInfo?.profile) {
